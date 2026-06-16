@@ -18,7 +18,15 @@ Usage (once implemented):
     print(result["error"])   # None on success
 """
 
+import os
+import re
+
+from dotenv import load_dotenv
+from groq import Groq
+
 from tools import search_listings, suggest_outfit, create_fit_card
+
+load_dotenv()
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -46,6 +54,54 @@ def _new_session(query: str, wardrobe: dict) -> dict:
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
+
+def _parse_query(query: str) -> dict:
+    """
+    Extract description, size, and max_price from a natural language query
+    using the LLM. Missing fields default to None.
+
+    Returns a dict: {"description": str, "size": str | None, "max_price": float | None}
+    Falls back to treating the whole query as the description if parsing fails.
+    """
+    fallback = {"description": query.strip(), "size": None, "max_price": None}
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return fallback
+
+    prompt = f"""Extract a clothing search from this user query. Return ONLY a JSON
+object with exactly these keys: "description" (string — the core item being
+searched for, e.g. "vintage graphic tee"), "size" (string or null if not
+mentioned), "max_price" (number or null if not mentioned, no dollar sign).
+
+Query: "{query}"
+
+Respond with ONLY the JSON object, no other text."""
+
+    try:
+        client = Groq(api_key=api_key)
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=150,
+        )
+        raw = response.choices[0].message.content.strip()
+        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
+
+        import json
+        parsed = json.loads(raw)
+
+        description = parsed.get("description") or query.strip()
+        size = parsed.get("size") or None
+        max_price = parsed.get("max_price")
+        max_price = float(max_price) if max_price is not None else None
+
+        return {"description": description, "size": size, "max_price": max_price}
+    except Exception:
+        # Parsing failed for any reason (bad JSON, API error, etc.) — fall back
+        # to using the raw query as the description with no size/price filter.
+        return fallback
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
@@ -92,10 +148,68 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     Before writing code, complete the Planning Loop and State Management sections
     of planning.md — your implementation should match what you described there.
     """
-    # TODO: implement the planning loop
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+
+    # Step 1: guard against an empty/invalid query
+    if not query or not query.strip():
+        session["error"] = "Please enter a description of what you're looking for."
+        return session
+
+    # Step 2: parse the query into description / size / max_price
+    session["parsed"] = _parse_query(query)
+
+    # Step 3: call search_listings
+    session["search_results"] = search_listings(
+        description=session["parsed"]["description"],
+        size=session["parsed"]["size"],
+        max_price=session["parsed"]["max_price"],
+    )
+
+    if not session["search_results"]:
+        size = session["parsed"]["size"]
+        max_price = session["parsed"]["max_price"]
+        suggestions = []
+        if size is not None:
+            suggestions.append("removing the size filter")
+        if max_price is not None:
+            suggestions.append("increasing the max price")
+        if suggestions:
+            suggestion_text = " or ".join(suggestions)
+            session["error"] = (
+                f"No relevant items found for '{session['parsed']['description']}'. "
+                f"Try {suggestion_text}, or add more descriptive keywords."
+            )
+        else:
+            session["error"] = (
+                f"No relevant items found for '{session['parsed']['description']}'. "
+                f"Try adding more descriptive keywords."
+            )
+        return session
+
+    # Step 4: select the top result
+    session["selected_item"] = session["search_results"][0]
+
+    # Step 5: call suggest_outfit
+    outfit_suggestion = suggest_outfit(session["selected_item"], session["wardrobe"])
+
+    if not outfit_suggestion or outfit_suggestion == "Unable to create an outfit":
+        session["error"] = "We couldn't put together an outfit for this item. Please try again."
+        return session
+
+    session["outfit_suggestion"] = outfit_suggestion
+
+    # Step 6: call create_fit_card
+    fit_card = create_fit_card(session["outfit_suggestion"], session["selected_item"])
+
+    if not fit_card or fit_card == "Unable to generate social media caption":
+        session["error"] = "We couldn't generate a caption for this outfit. Please try again."
+        return session
+
+    session["fit_card"] = fit_card
+
+    # Step 7: return the completed session
     return session
+
 
 
 # ── CLI test ──────────────────────────────────────────────────────────────────
@@ -115,9 +229,15 @@ if __name__ == "__main__":
         print(f"\nOutfit: {session['outfit_suggestion']}")
         print(f"\nFit card: {session['fit_card']}")
 
+    #print(session)
+    print()
+
     print("\n\n=== No-results path ===\n")
     session2 = run_agent(
         query="designer ballgown size XXS under $5",
         wardrobe=get_example_wardrobe(),
     )
     print(f"Error message: {session2['error']}")
+
+    #print(session2)
+    print()
