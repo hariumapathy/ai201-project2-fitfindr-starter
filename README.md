@@ -60,6 +60,7 @@ wardrobe = get_example_wardrobe()
 
 Your implementation files go in this same directory. There's no required file structure for your agent code — organize it however makes sense for your design.
 
+---
 
 ## Tool Inventory
 
@@ -137,6 +138,8 @@ Returns a social media-style caption (roughly 2 to 4 sentences) of the provided 
 **What happens if it fails or returns nothing:**
 If the tool fails or returns nothing, or if the provided outfit string is empty or just contains whitespace, an error message should be returned: "Unable to generate social media caption". This is then caught and handled in the agent loop.
 
+---
+
 ## How the Planning Loop Works
 
 1. Take the user's query, and check that the query is not empty. If empty, set the session error message to "Please enter a description of what you're looking for.". Do not proceed with the tool calls until the user reenters a non-empty query.
@@ -153,7 +156,7 @@ If the tool fails or returns nothing, or if the provided outfit string is empty 
 
 7. Lastly, if create_fit_card returns a successful output, then the entire session should be returned, to be displayed in the corresponding fields of the UI as outputs.
 
-
+---
 
 ## State Management Approach
 
@@ -178,10 +181,37 @@ The query and wardrobe fields are the first to be populated, right after the use
 
 At any step, if the tool call fails, the session dict is returned, with session["error"] set to some useful string message. For a successful session, session["error"] will be None, and all other fields will be populated / no longer be None or empty.
 
+---
+
 ## Error Handling Approach
 
 | Tool | Failure mode | Agent response |
 |------|-------------|----------------|
-| search_listings | No results match the query | Sets `session["error"]` to a message stating no relevant items were found, recommending the user add more keywords to the description and/or increase the max price (wording adjusts based on which filters were actually specified).  |
-| suggest_outfit | Wardrobe is empty | Returns general styling advice for the new item alone, rather than a specific outfit combination. |
-| create_fit_card | Outfit input is missing or incomplete |  Sets `session["error"]` to "Unable to generate social media caption" |
+| search_listings | No results match the query | Sets `session["error"]` to a message stating no relevant items were found, recommending the user add more keywords to the description and/or increase the max price or drop the size filter (the exact wording adjusts based on whether max_price and/or size were actually specified/found by the parser). For example, the query "designer ballgown size XXS under $5" would result in the following message displayed to the user: "No relevant items found for 'designer ballgown'. Try removing the size filter or increasing the max price, or add more descriptive keywords.".
+| suggest_outfit | Wardrobe is empty | Returns general styling advice for the new item alone, rather than a specific outfit combination. It does **not** throw an error or update `session["error"]` with an error message. Instead, the general styling advice will recommend common/general clothing items to go along with the new item, instead of pulling specific items from a populated wardrobe. For example, if the user query is "vintage graphic tee under $30" and the user selects "Empty wardrobe (new user)", the text in the "Outfit Idea" panel might look like this: "This tee would look amazing with some high-waisted jeans or a flowy skirt to balance out the boxy fit, and you could add some edgy boots or sneakers to really bring out the grunge vibe. Pairing it with a leather jacket or a denim jacket would also add a cool layer of depth to the overall look. The black color is pretty versatile, so you could also experiment with popping it against some brighter colored bottoms or shoes for a more playful feel."
+| create_fit_card | Outfit input is missing or incomplete |  Sets `session["error"]` to "Unable to generate social media caption". This can be triggered by passing an empty string to the create_fit_card tool, for example. |
+
+---
+
+## Spec Reflection
+
+**One way the spec helped during implementation:**
+The spec helped during implementation to understand and map out the agent loop, which was helpful in prompting Claude when implementing the tool functions in tools.py and the run_agent() function in agent.py. By having a diagram of the loop already constructed, it was easier to see how each tool had to perform in isolation, which helped inform testing and ensuring that each tool held to its contract in terms of expected vs actual output/behavior. Instead of having to describe the loop in vague terms, the architecture diagram made it easier to get specific and relevant code snippets from Claude, rather than having Claude make assumptions of its own and incorrectly implement the tools.
+
+
+**One way the implementation diverged from the spec, and why:**
+My implementation slightly diverged from the spec in terms of specificity and the wording of the session's error messages for different tool failures. My spec was not super specific in terms of prompts to LLMs for the tool calls, and how exactly the error messages would be structured. However, the spec served as a foundation upon which I added extra details as I walked through the implementation and flushed out the vague/missing details.
+
+---
+
+## AI Usage
+**Instance 1**
+- *What I gave the AI:* I gave Claude the Architecture diagram from my planning.md, the Tool 1 info under the Tools section of planning.md, and a description of load_listings() in data_loader.py, and asked it to implement the search_listings tool.
+- *What it produced:* It produced an initial draft of the search_listings function and additional helper functions that are now in tools.py.
+- *What I changed or overrode:* I further specified how I wanted the size matching to be done, to handle cases such as "S/M" and the user asks for a medium item. This prompted the LLM to further refine the helper functions, specifically _size_matches(), to ensure that "fuzzy" size matching would avoid excessive filtering. I also had Claude explain how the code handling scoring of item relevancy, and how it matched items and dealt with items with similar scores/relevancy.
+
+**Instance 2**
+
+- *What I gave the AI:* I gave Claude the Planning Loop, State Management, Error Handling, and Architecture diagram sections of my planning.md, and asked it to gradually implement run_agent() in agent.py, step by step.
+- *What it produced:* It produced a draft of the run_agent() function code, and added a helper function _parse_query() to use an LLM as a parser.
+- *What I changed or overrode:* I specified that the Groq API was being used, and asked it to ensure that the LLM parser would act more deterministic, so the temperature parameter was added to the Groq API call and was set to 0.

@@ -49,7 +49,6 @@ If the search_listings tool fails or returns an empty list, then an error messag
 
 The exact wording of the error message will vary depending on if the `max_price` and `size` parameters were actually specified in the tool call arguments.
 
----
 
 ### Tool 2: suggest_outfit
 
@@ -69,7 +68,7 @@ Returns a string description of the outfit, clearly mentioning what the componen
 If the wardrobe is empty, then the returned string should be general styling advice for the selected item, rather than outright failing to produce any meaningful output.
 
 For any other failures, an error message of "Unable to create an outfit" should be used in the session.
----
+
 
 ### Tool 3: create_fit_card
 
@@ -81,6 +80,7 @@ Given an outfit description and the chosen new_item dict, the create_fit_card to
 <!-- List each parameter, its type, and what it represents -->
 - `outfit` (str): The string description of the outfit, provided by the tool suggest_outfit.
 - `new_item` (dict): The dict item representing the select item's listing information.
+
 **What it returns:**
 <!-- Describe the return value -->
 Returns a social media-style caption (~2 to 4 sentences) of the provided outfit as a string. This caption should be somewhat creative, flow naturally, and include details such as the new item's price, name, and platform. The caption will include specific terms to capture the overall outfit, and should be different for multiple tool calls.
@@ -88,7 +88,7 @@ Returns a social media-style caption (~2 to 4 sentences) of the provided outfit 
 **What happens if it fails or returns nothing:**
 If the tool fails or returns nothing, or if the provided outfit string is empty or just contains whitespace, an error message should be added for the session, such as: "Unable to generate social media caption".
 
----
+
 
 ### Additional Tools (if any)
 
