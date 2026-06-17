@@ -71,8 +71,8 @@ Given a user's description and the size and max price (the latter two may not be
 
 **Input parameters:**
 - `description` (str): A user's description of a clothing item they want to thrift (ex: "vintage baggy tee" or "white sneakers"). This description is required.
-- `size` (str): The user's target size, which is not case sensitive (ex: "M", "m", and "S/M" would be considered the same sizes). Examples might include size tags ("S", "L", "XL", etc), size words such as "small", "medium", "large", etc, or size numbers such as waist and leg measurements. If a target size is not specified, the `size` parameter can be set to None.
-- `max_price` (float): The maximum (inclusive) price that an item must remain at or below to be a relevant item. If a max price does not need to specified, `max_price` can be set to None.
+- `size` (str | None): The user's target size, which is not case sensitive (ex: "M", "m", and "S/M" would be considered the same sizes). Examples might include size tags ("S", "L", "XL", etc), size words such as "small", "medium", "large", etc, or size numbers such as waist and leg measurements. If a target size is not specified, the `size` parameter can be set to None.
+- `max_price` (float | None): The maximum (inclusive) price that an item must remain at or below to be a relevant item. If a max price does not need to specified, `max_price` can be set to None.
 
 **What it returns:**
 Returns a list of dictionary items, where each dictionary items corresponds to one relevant clothing item. The list is returned in order of relevance, with the first item being the most relevant pick.
