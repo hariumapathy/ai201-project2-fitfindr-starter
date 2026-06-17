@@ -158,6 +158,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     # Step 2: parse the query into description / size / max_price
     session["parsed"] = _parse_query(query)
 
+    # FOR TESTING in terminal
+    #print(f"* Parsed user query\n")
+
+    # FOR TESTING in terminal
+    #print(f"* TOOL CALL - calling search_listings\n")
+
     # Step 3: call search_listings
     session["search_results"] = search_listings(
         description=session["parsed"]["description"],
@@ -189,6 +195,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     # Step 4: select the top result
     session["selected_item"] = session["search_results"][0]
 
+    # FOR TESTING in terminal
+    #print(f"* Updated session['selected_item'] - {session['selected_item']}\n")
+
+    # FOR TESTING in terminal
+    #print(f"* TOOL CALL - calling suggest_outfit\n")
+
     # Step 5: call suggest_outfit
     outfit_suggestion = suggest_outfit(session["selected_item"], session["wardrobe"])
 
@@ -197,6 +209,9 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         return session
 
     session["outfit_suggestion"] = outfit_suggestion
+
+    # FOR TESTING in terminal
+    #print(f"* TOOL CALL - calling create_fit_card\n")
 
     # Step 6: call create_fit_card
     fit_card = create_fit_card(session["outfit_suggestion"], session["selected_item"])

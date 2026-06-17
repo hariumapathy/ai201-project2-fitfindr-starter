@@ -43,8 +43,14 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
            string and return it along with session["outfit_suggestion"] and
            session["fit_card"].
     """
+    # FOR TESTING - See the session start to separate tool call prints
+    #print("----- START OF SESSION -----")
+
     # Step 1: guard against an empty query
     if not user_query or not user_query.strip():
+        # FOR TESTING in terminal
+        #print("* Invalid/empty query")
+
         return "Please enter a description of what you're looking for.", "", ""
  
     # Step 2: select the wardrobe based on the radio choice
@@ -52,12 +58,19 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
         wardrobe = get_empty_wardrobe()
     else:
         wardrobe = get_example_wardrobe()
+
+    # FOR TESTING in terminal
+    #print(f"* QUERY: {user_query}\n")
+    #print(f"* WARDROBE CHOICE: {wardrobe_choice}\n")
  
     # Step 3: run the agent
     session = run_agent(query=user_query, wardrobe=wardrobe)
  
     # Step 4: if the agent stopped early, surface the error in the first panel
     if session["error"]:
+        # FOR TESTING in terminal
+        #print(f"* Session ERROR: {session['error']}\n")
+
         return session["error"], "", ""
  
     # Step 5: format the selected listing into a readable string and return
@@ -69,6 +82,12 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
         f"Size: {item['size']}\n\n"
         f"{item['description']}"
     )
+
+    # FOR TESTING - Print returned values; See the session end to separate tool call prints
+    #print(f"* LISTING TEXT: {listing_text}\n")
+    #print(f"* OUTFIT SUGGESTION: {session['outfit_suggestion']}\n")
+    #print(f"* FIT CARD: {session['fit_card']}\n")
+    #print("----- END OF SESSION -----")
  
     return listing_text, session["outfit_suggestion"], session["fit_card"]
 
